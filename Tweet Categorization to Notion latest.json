@@ -126,42 +126,14 @@
           "propertyValues": [
             {
               "key": "Category|select",
-              "type": "select",
               "selectValue": "={{ $json.category }}"
             },
             {
-              "key": "Tags|multi_select",
-              "type": "multiSelect",
-              "multiSelectValue": "={{ $json.tags }}"
-            },
-            {
-              "key": "Description|rich_text",
-              "type": "richText",
-              "textContent": "={{ $json.description }}"
-            },
-            {
-              "key": "Prompt|rich_text",
-              "type": "richText",
-              "textContent": "={{ $json.prompt }}"
-            },
-            {
-              "key": "Tweet Content|rich_text",
-              "type": "richText",
-              "textContent": "={{ $json.tweetContent }}"
-            },
-            {
-              "key": "Author|rich_text",
-              "type": "richText",
-              "textContent": "={{ $json.author }}"
-            },
-            {
               "key": "Processing Status|select",
-              "type": "select",
               "selectValue": "Processed"
             },
             {
               "key": "Date Processed|date",
-              "type": "date",
               "date": "={{ $now.toISO() }}"
             }
           ]
