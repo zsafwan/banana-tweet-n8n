@@ -10,17 +10,20 @@
             }
           ]
         },
-        "event": "page",
-        "databaseId": "YOUR_NOTION_DATABASE_ID",
-        "options": {
-          "filters": {
-            "conditions": [
-              {
-                "property": "Processing Status",
-                "condition": "equals",
-                "value": "Pending"
-              }
-            ]
+        "event": "pagedatabaseitem",
+        "databaseId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YOUR_NOTION_DATABASE_ID"
+        },
+        "simple": false,
+        "filterType": "json",
+        "jsonFilter": {
+          "filter": {
+            "property": "Processing Status",
+            "select": {
+              "equals": "Pending"
+            }
           }
         }
       },
@@ -28,47 +31,79 @@
       "name": "Notion Trigger",
       "type": "n8n-nodes-base.notionTrigger",
       "typeVersion": 2,
-      "position": [250, 300]
+      "position": [250, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      }
     },
     {
       "parameters": {
-        "url": "=https://api.vxtwitter.com/Twitter/status/{{ $json.properties.URL.url.split('/').pop() }}",
-        "options": {}
+        "method": "GET",
+        "url": "=https://api.vxtwitter.com/Twitter/status/{{ $json.properties.URL.url.split('/').pop().split('?')[0] }}",
+        "options": {
+          "timeout": 10000
+        }
       },
       "id": "fetch-tweet",
       "name": "Fetch Tweet Content",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "typeVersion": 4.2,
       "position": [470, 300],
-      "notes": "Using vxtwitter API - free, no auth needed"
+      "onError": "continueErrorOutput",
+      "notes": "Using vxtwitter API - free, no auth needed. Extracts tweet ID from URL."
     },
     {
       "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "anthropicApi",
-        "resource": "message",
-        "model": "claude-haiku-4-5-20251001",
-        "prompt": "=Analyze this tweet about nano banana pro prompts and provide a structured response.\n\nTweet Author: {{ $json.user_name }}\nTweet Text: {{ $json.text }}\nTweet URL: {{ $('Notion Trigger').item.json.properties.URL.url }}\n\nProvide your response in this exact JSON format:\n{\n  \"category\": \"<one of: Technique|Use Case|Tips|Examples|Tutorial|Inspiration|Discussion>\",\n  \"tags\": [\"<tag1>\", \"<tag2>\", \"<tag3>\"],\n  \"description\": \"<concise 1-2 sentence description>\",\n  \"prompt\": \"<the actual nano banana pro prompt if present, otherwise empty string>\",\n  \"author\": \"{{ $json.user_name }}\"\n}\n\nIMPORTANT - Prompt Extraction:\n- Look for the actual nano banana pro prompt in the tweet\n- Prompts are often in quotes, code blocks, or clearly formatted\n- Extract the complete prompt text exactly as written\n- If the tweet discusses prompts but doesn't contain an actual prompt, leave empty\n- If multiple prompts, extract the primary/main one\n\nFocus on:\n- What aspect of nano banana pro prompts this covers\n- Key techniques or insights mentioned\n- Practical application value\n\nRespond ONLY with valid JSON, no other text.",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 500,\n  \"temperature\": 0.3,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Analyze this tweet about nano banana pro prompts and provide a structured response.\\n\\nTweet Author: {{ $json.user_name }}\\nTweet Text: {{ $json.text }}\\nTweet URL: {{ $('Notion Trigger').item.json.properties.URL.url }}\\n\\nProvide your response in this exact JSON format:\\n{\\n  \\\"category\\\": \\\"<one of: Technique|Use Case|Tips|Examples|Tutorial|Inspiration|Discussion>\\\",\\n  \\\"tags\\\": [\\\"<tag1>\\\", \\\"<tag2>\\\", \\\"<tag3>\\\"],\\n  \\\"description\\\": \\\"<concise 1-2 sentence description>\\\",\\n  \\\"prompt\\\": \\\"<the actual nano banana pro prompt if present, otherwise empty string>\\\",\\n  \\\"author\\\": \\\"{{ $json.user_name }}\\\"\\n}\\n\\nIMPORTANT - Prompt Extraction:\\n- Look for the actual nano banana pro prompt in the tweet\\n- Prompts are often in quotes, code blocks, or clearly formatted\\n- Extract the complete prompt text exactly as written\\n- If the tweet discusses prompts but doesn't contain an actual prompt, leave empty\\n- If multiple prompts, extract the primary/main one\\n\\nFocus on:\\n- What aspect of nano banana pro prompts this covers\\n- Key techniques or insights mentioned\\n- Practical application value\\n\\nRespond ONLY with valid JSON, no other text.\"\n    }\n  ]\n}",
         "options": {
-          "maxTokens": 500,
-          "temperature": 0.3
+          "timeout": 30000
         }
       },
       "id": "claude-analysis",
       "name": "Claude Analysis",
-      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
-      "typeVersion": 1,
-      "position": [690, 300]
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [690, 300],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CREDENTIAL_ID",
+          "name": "Anthropic API"
+        }
+      },
+      "notes": "Calls Claude Haiku 4.5 API for intelligent analysis and prompt extraction"
     },
     {
       "parameters": {
-        "jsCode": "// Parse Claude's response and prepare for Notion\nconst claudeResponse = $input.item.json.response || $input.item.json.message?.content?.[0]?.text;\n\nlet analysis;\ntry {\n  // Remove markdown code blocks if present\n  const cleanJson = claudeResponse.replace(/```json\\n?|```/g, '').trim();\n  analysis = JSON.parse(cleanJson);\n} catch (error) {\n  // Fallback if JSON parsing fails\n  analysis = {\n    category: \"Uncategorized\",\n    tags: [\"needs-review\"],\n    description: \"Failed to parse analysis\",\n    prompt: \"\",\n    author: $('Fetch Tweet Content').item.json.user_name || \"Unknown\"\n  };\n}\n\n// Get original tweet data\nconst tweetData = $('Fetch Tweet Content').item.json;\nconst notionData = $('Notion Trigger').item.json;\n\nreturn {\n  json: {\n    pageId: notionData.id,\n    category: analysis.category,\n    tags: analysis.tags,\n    description: analysis.description,\n    prompt: analysis.prompt || \"\",\n    tweetContent: tweetData.text || \"\",\n    author: tweetData.user_name || analysis.author || \"Unknown\",\n    tweetUrl: notionData.properties.URL.url\n  }\n};"
+        "jsCode": "// Extract Claude's response from API result\nconst claudeResponse = $input.item.json.content?.[0]?.text || \"\";\n\nlet analysis;\ntry {\n  // Clean markdown code blocks if present\n  const cleanJson = claudeResponse\n    .replace(/```json\\n?|```/g, '')\n    .trim();\n  \n  // Parse JSON\n  analysis = JSON.parse(cleanJson);\n  \n  // Validate category is one of allowed values\n  const validCategories = ['Technique', 'Use Case', 'Tips', 'Examples', 'Tutorial', 'Inspiration', 'Discussion', 'Uncategorized'];\n  if (!validCategories.includes(analysis.category)) {\n    analysis.category = 'Uncategorized';\n  }\n  \n  // Ensure tags is an array\n  if (!Array.isArray(analysis.tags)) {\n    analysis.tags = ['needs-review'];\n  }\n  \n} catch (error) {\n  // Fallback for parsing failures\n  console.error(\"Parse error:\", error);\n  analysis = {\n    category: \"Uncategorized\",\n    tags: [\"needs-review\"],\n    description: \"Failed to parse analysis - \" + error.message,\n    prompt: \"\",\n    author: $('Fetch Tweet Content').item.json.user_name || \"Unknown\"\n  };\n}\n\n// Get original data from previous nodes\nconst tweetData = $('Fetch Tweet Content').item.json;\nconst notionData = $('Notion Trigger').item.json;\n\n// Return structured data for Notion update\nreturn {\n  json: {\n    pageId: notionData.id,\n    category: analysis.category,\n    tags: analysis.tags,\n    description: analysis.description || \"\",\n    prompt: analysis.prompt || \"\",\n    tweetContent: tweetData.text || \"\",\n    author: tweetData.user_name || analysis.author || \"Unknown\",\n    tweetUrl: notionData.properties.URL.url\n  }\n};"
       },
       "id": "parse-response",
       "name": "Parse Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [910, 300]
+      "position": [910, 300],
+      "notes": "Parses Claude JSON response and validates data structure"
     },
     {
       "parameters": {
@@ -123,26 +158,15 @@
       "id": "update-notion",
       "name": "Update Notion",
       "type": "n8n-nodes-base.notion",
-      "typeVersion": 2,
-      "position": [1130, 300]
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.error }}",
-              "operation": "isEmpty"
-            }
-          ]
+      "typeVersion": 2.2,
+      "position": [1130, 300],
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
         }
       },
-      "id": "check-success",
-      "name": "Check Success",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [690, 500],
-      "notes": "Error handling branch"
+      "notes": "Updates the Notion page with all extracted and analyzed data"
     },
     {
       "parameters": {
@@ -159,7 +183,12 @@
             {
               "key": "Description",
               "type": "richText",
-              "richText": "=Failed to process: {{ $json.error || 'Unknown error' }}"
+              "richText": "=Failed to fetch tweet: {{ $json.error?.message || $json.message || 'Tweet not found or deleted' }}"
+            },
+            {
+              "key": "Date Processed",
+              "type": "date",
+              "date": "={{ $now.toISO() }}"
             }
           ]
         }
@@ -167,8 +196,15 @@
       "id": "mark-error",
       "name": "Mark as Error",
       "type": "n8n-nodes-base.notion",
-      "typeVersion": 2,
-      "position": [910, 600]
+      "typeVersion": 2.2,
+      "position": [690, 500],
+      "credentials": {
+        "notionApi": {
+          "id": "YOUR_NOTION_CREDENTIAL_ID",
+          "name": "Notion API"
+        }
+      },
+      "notes": "Marks the Notion page as Error when tweet fetch fails"
     }
   ],
   "connections": {
@@ -190,9 +226,11 @@
             "node": "Claude Analysis",
             "type": "main",
             "index": 0
-          },
+          }
+        ],
+        [
           {
-            "node": "Check Success",
+            "node": "Mark as Error",
             "type": "main",
             "index": 0
           }
@@ -220,19 +258,17 @@
           }
         ]
       ]
-    },
-    "Check Success": {
-      "main": [
-        [],
-        [
-          {
-            "node": "Mark as Error",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
     }
   },
-  "pinData": {}
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "pinData": {},
+  "versionId": "1.0.0"
 }
