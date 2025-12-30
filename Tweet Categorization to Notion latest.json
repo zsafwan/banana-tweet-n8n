@@ -18,13 +18,13 @@
           "cachedResultUrl": "https://www.notion.so/2d995cd9ba4680319d6feecd46b87acf"
         }
       },
-      "id": "5e574f40-12e0-49bd-8c52-843e4185eff5",
+      "id": "f0586c41-27b4-42d2-ac73-bbb96b1987f0",
       "name": "Notion Trigger",
       "type": "n8n-nodes-base.notionTrigger",
       "typeVersion": 1,
       "position": [
-        -1056,
-        2800
+        -720,
+        3024
       ],
       "credentials": {
         "notionApi": {
@@ -38,26 +38,26 @@
         "url": "=https://api.vxtwitter.com/Twitter/status/{{ $json.URL.split('/').pop().split('?')[0] }}",
         "options": {}
       },
-      "id": "b81219d8-8c12-4969-8b13-ef6002c1cc56",
+      "id": "de94ea5f-3adf-4a9a-b50c-7ad1b6ef36a1",
       "name": "Fetch Tweet Content",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
-        -832,
-        2800
+        -496,
+        3024
       ]
     },
     {
       "parameters": {
         "functionCode": "const tweetText = items[0].json.text || '';\nconst userName = items[0].json.user_name || 'Unknown';\nconst notionId = $node['Notion Trigger'].json.id;\nconst notionUrl = $node['Notion Trigger'].json.URL;\n\nconst prompt = `Analyze this tweet about nano banana pro prompts and provide a structured response.\n\nTweet Author: ${userName}\nTweet Text: ${tweetText}\n\nProvide your response in this exact JSON format:\n{\n  \"category\": \"<one of: Technique|Use Case|Tips|Examples|Tutorial|Inspiration|Discussion>\",\n  \"tags\": [\"<tag1>\", \"<tag2>\", \"<tag3>\"],\n  \"description\": \"<concise 1-2 sentence description>\",\n  \"prompt\": \"<the actual nano banana pro prompt if present, otherwise empty string>\",\n  \"author\": \"${userName}\"\n}\n\nIMPORTANT - Prompt Extraction:\n- Look for the actual nano banana pro prompt in the tweet\n- Prompts are often in quotes, code blocks, or clearly formatted\n- Extract the complete prompt text exactly as written\n- If the tweet discusses prompts but doesn't contain an actual prompt, leave empty\n- If multiple prompts, extract the primary/main one\n\nFocus on:\n- What aspect of nano banana pro prompts this covers\n- Key techniques or insights mentioned\n- Practical application value\n\nRespond ONLY with valid JSON, no other text.`;\n\nreturn [{\n  json: {\n    notionId: notionId,\n    notionUrl: notionUrl,\n    tweetText: tweetText,\n    userName: userName,\n    claudeBody: {\n      model: 'claude-haiku-4-5-20251001',\n      max_tokens: 500,\n      temperature: 0.3,\n      messages: [{ role: 'user', content: prompt }]\n    }\n  }\n}];"
       },
-      "id": "e3581d3c-6332-4873-a3a8-b105407cb76e",
+      "id": "be12abae-fd76-4776-bf73-ad77fd1daba2",
       "name": "Prepare Claude Request",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [
-        -624,
-        2800
+        -288,
+        3024
       ]
     },
     {
@@ -84,13 +84,13 @@
         "jsonBody": "={{ JSON.stringify($json.claudeBody) }}",
         "options": {}
       },
-      "id": "f34aca13-b32f-4e61-aa70-aa9e4a6ed6f3",
+      "id": "c1874874-9767-4ab3-a71e-04760ec80a18",
       "name": "Claude Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
       "position": [
-        -400,
-        2800
+        -64,
+        3024
       ],
       "credentials": {
         "anthropicApi": {
@@ -103,13 +103,13 @@
       "parameters": {
         "functionCode": "const claudeResponse = items[0].json.content?.[0]?.text || '';\n\n// Get data from previous nodes\nconst notionData = $node['Notion Trigger'].json;\nconst tweetData = $node['Fetch Tweet Content'].json;\n\nlet analysis;\ntry {\n  const cleanJson = claudeResponse.replace(/```json\\n?|```/g, '').trim();\n  analysis = JSON.parse(cleanJson);\n  \n  const validCategories = ['Technique', 'Use Case', 'Tips', 'Examples', 'Tutorial', 'Inspiration', 'Discussion', 'Uncategorized'];\n  if (!validCategories.includes(analysis.category)) {\n    analysis.category = 'Uncategorized';\n  }\n  if (!Array.isArray(analysis.tags)) {\n    analysis.tags = ['Needs-review'];\n  }\n} catch (error) {\n  analysis = {\n    category: 'Uncategorized',\n    tags: ['Needs-review'],\n    description: 'Failed to parse: ' + error.message,\n    prompt: '',\n    author: tweetData.user_name || 'Unknown'\n  };\n}\n\n// Format page ID - remove dashes for Notion API compatibility\nconst rawPageId = notionData.id || '';\nconst formattedPageId = rawPageId.replace(/-/g, '');\n\nreturn [{\n  json: {\n    pageId: formattedPageId,\n    category: analysis.category,\n    tags: analysis.tags,\n    description: analysis.description || '',\n    prompt: analysis.prompt || '',\n    tweetContent: tweetData.text || '',\n    author: tweetData.user_name || analysis.author || 'Unknown',\n    tweetUrl: notionData.URL\n  }\n}];"
       },
-      "id": "ac35f694-c73e-4ecd-b008-b6d41cb94639",
+      "id": "8c505769-9763-4053-9a32-d4bf79e6d044",
       "name": "Parse Response",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [
-        -176,
-        2800
+        160,
+        3024
       ]
     },
     {
@@ -125,42 +125,42 @@
         "propertiesUi": {
           "propertyValues": [
             {
-              "key": "Category",
+              "key": "Category|select",
               "type": "select",
               "selectValue": "={{ $json.category }}"
             },
             {
-              "key": "Tags",
+              "key": "Tags|multi_select",
               "type": "multiSelect",
               "multiSelectValue": "={{ $json.tags }}"
             },
             {
-              "key": "Description",
+              "key": "Description|rich_text",
               "type": "richText",
               "textContent": "={{ $json.description }}"
             },
             {
-              "key": "Prompt",
+              "key": "Prompt|rich_text",
               "type": "richText",
               "textContent": "={{ $json.prompt }}"
             },
             {
-              "key": "Tweet Content",
+              "key": "Tweet Content|rich_text",
               "type": "richText",
               "textContent": "={{ $json.tweetContent }}"
             },
             {
-              "key": "Author",
+              "key": "Author|rich_text",
               "type": "richText",
               "textContent": "={{ $json.author }}"
             },
             {
-              "key": "Processing Status",
+              "key": "Processing Status|select",
               "type": "select",
-              "selectValue": "Processed"
+              "selectValue": "=Processed"
             },
             {
-              "key": "Date Processed",
+              "key": "Date Processed|date",
               "type": "date",
               "date": "={{ $now.toISO() }}"
             }
@@ -168,13 +168,13 @@
         },
         "options": {}
       },
-      "id": "dab15689-35c9-4d8c-9277-4181abe3d71d",
+      "id": "d9573003-d574-4b3b-b3c5-0aa2f61df88e",
       "name": "Update Notion",
       "type": "n8n-nodes-base.notion",
       "typeVersion": 2,
       "position": [
-        48,
-        2800
+        384,
+        3024
       ],
       "credentials": {
         "notionApi": {
@@ -196,17 +196,17 @@
         "propertiesUi": {
           "propertyValues": [
             {
-              "key": "Processing Status",
+              "key": "Processing Status|select",
               "type": "select",
               "selectValue": "Error"
             },
             {
-              "key": "Description",
+              "key": "Description|rich_text",
               "type": "richText",
               "textContent": "Failed to fetch tweet - may be deleted or private"
             },
             {
-              "key": "Date Processed",
+              "key": "Date Processed|date",
               "type": "date",
               "date": "={{ $now.toISO() }}"
             }
@@ -214,13 +214,13 @@
         },
         "options": {}
       },
-      "id": "50c42d5c-b217-40ae-a6b6-c6b73d2a2a5e",
+      "id": "98d0a0d0-4d16-4bfd-aec5-0bcbdb34dda2",
       "name": "Mark as Error",
       "type": "n8n-nodes-base.notion",
       "typeVersion": 2,
       "position": [
-        -400,
-        3008
+        -64,
+        3232
       ],
       "credentials": {
         "notionApi": {
@@ -248,15 +248,6 @@
         [
           {
             "node": "Prepare Claude Request",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ],
-      "error": [
-        [
-          {
-            "node": "Mark as Error",
             "type": "main",
             "index": 0
           }
@@ -302,7 +293,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "f6a9c545-d4b3-4a5b-b802-bb1154b9a059",
+  "versionId": "1f365ab0-3b65-4c83-b8ef-337eba5c35a6",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "897026718648428259fa267f9678147da79ee2d1fe9208bea6a2ea3715315356"
