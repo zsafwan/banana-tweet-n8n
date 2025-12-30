@@ -22,23 +22,6 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json[\"Processing Status\"] }}",
-              "value2": "Pending"
-            }
-          ]
-        }
-      },
-      "id": "filter-pending",
-      "name": "Filter Pending",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [470, 300]
-    },
-    {
-      "parameters": {
         "method": "GET",
         "url": "=https://api.vxtwitter.com/Twitter/status/{{ $json.URL.split('/').pop().split('?')[0] }}",
         "options": {}
@@ -47,7 +30,7 @@
       "name": "Fetch Tweet Content",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [690, 300]
+      "position": [470, 300]
     },
     {
       "parameters": {
@@ -70,14 +53,14 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 500,\n  \"temperature\": 0.3,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Analyze this tweet about nano banana pro prompts and provide a structured response.\\n\\nTweet Author: {{ $json.user_name }}\\nTweet Text: {{ $json.text }}\\nTweet URL: {{ $node[\"Notion Trigger\"].json.URL }}\\n\\nProvide your response in this exact JSON format:\\n{\\n  \\\"category\\\": \\\"<one of: Technique|Use Case|Tips|Examples|Tutorial|Inspiration|Discussion>\\\",\\n  \\\"tags\\\": [\\\"<tag1>\\\", \\\"<tag2>\\\", \\\"<tag3>\\\"],\\n  \\\"description\\\": \\\"<concise 1-2 sentence description>\\\",\\n  \\\"prompt\\\": \\\"<the actual nano banana pro prompt if present, otherwise empty string>\\\",\\n  \\\"author\\\": \\\"{{ $json.user_name }}\\\"\\n}\\n\\nIMPORTANT - Prompt Extraction:\\n- Look for the actual nano banana pro prompt in the tweet\\n- Prompts are often in quotes, code blocks, or clearly formatted\\n- Extract the complete prompt text exactly as written\\n- If the tweet discusses prompts but doesn't contain an actual prompt, leave empty\\n- If multiple prompts, extract the primary/main one\\n\\nFocus on:\\n- What aspect of nano banana pro prompts this covers\\n- Key techniques or insights mentioned\\n- Practical application value\\n\\nRespond ONLY with valid JSON, no other text.\"\n    }\n  ]\n}",
+        "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 500,\n  \"temperature\": 0.3,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Analyze this tweet about nano banana pro prompts and provide a structured response.\\n\\nTweet Author: {{ $json.user_name }}\\nTweet Text: {{ $json.text }}\\nTweet URL: {{ $node[\\\"Notion Trigger\\\"].json.URL }}\\n\\nProvide your response in this exact JSON format:\\n{\\n  \\\"category\\\": \\\"<one of: Technique|Use Case|Tips|Examples|Tutorial|Inspiration|Discussion>\\\",\\n  \\\"tags\\\": [\\\"<tag1>\\\", \\\"<tag2>\\\", \\\"<tag3>\\\"],\\n  \\\"description\\\": \\\"<concise 1-2 sentence description>\\\",\\n  \\\"prompt\\\": \\\"<the actual nano banana pro prompt if present, otherwise empty string>\\\",\\n  \\\"author\\\": \\\"{{ $json.user_name }}\\\"\\n}\\n\\nIMPORTANT - Prompt Extraction:\\n- Look for the actual nano banana pro prompt in the tweet\\n- Prompts are often in quotes, code blocks, or clearly formatted\\n- Extract the complete prompt text exactly as written\\n- If the tweet discusses prompts but doesn't contain an actual prompt, leave empty\\n- If multiple prompts, extract the primary/main one\\n\\nFocus on:\\n- What aspect of nano banana pro prompts this covers\\n- Key techniques or insights mentioned\\n- Practical application value\\n\\nRespond ONLY with valid JSON, no other text.\"\n    }\n  ]\n}",
         "options": {}
       },
       "id": "claude-analysis",
       "name": "Claude Analysis",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 3,
-      "position": [910, 300]
+      "position": [690, 300]
     },
     {
       "parameters": {
@@ -87,7 +70,7 @@
       "name": "Parse Response",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
-      "position": [1130, 300]
+      "position": [910, 300]
     },
     {
       "parameters": {
@@ -143,7 +126,7 @@
       "name": "Update Notion",
       "type": "n8n-nodes-base.notion",
       "typeVersion": 2,
-      "position": [1350, 300]
+      "position": [1130, 300]
     },
     {
       "parameters": {
@@ -174,22 +157,11 @@
       "name": "Mark as Error",
       "type": "n8n-nodes-base.notion",
       "typeVersion": 2,
-      "position": [910, 500]
+      "position": [690, 500]
     }
   ],
   "connections": {
     "Notion Trigger": {
-      "main": [
-        [
-          {
-            "node": "Filter Pending",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Filter Pending": {
       "main": [
         [
           {
