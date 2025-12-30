@@ -86,7 +86,7 @@
       "parameters": {
         "resource": "databasePage",
         "operation": "update",
-        "pageId": "={{ $json.pageId }}",
+        "pageId": "=https://notion.so/{{ $json.pageId }}",
         "propertiesUi": {
           "propertyValues": [
             {
@@ -142,7 +142,7 @@
       "parameters": {
         "resource": "databasePage",
         "operation": "update",
-        "pageId": "={{ $node['Notion Trigger'].json.id }}",
+        "pageId": "=https://notion.so/{{ $node['Notion Trigger'].json.id }}",
         "propertiesUi": {
           "propertyValues": [
             {
