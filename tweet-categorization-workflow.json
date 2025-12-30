@@ -23,46 +23,31 @@
     {
       "parameters": {
         "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict"
-          },
-          "conditions": [
+          "string": [
             {
-              "id": "condition-1",
-              "leftValue": "={{ $json.properties['Processing Status'].select.name }}",
-              "rightValue": "Pending",
-              "operator": {
-                "type": "string",
-                "operation": "equals"
-              }
+              "value1": "={{ $json.properties['Processing Status'].select.name }}",
+              "value2": "Pending"
             }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
+          ]
+        }
       },
       "id": "filter-pending",
       "name": "Filter Pending",
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "position": [470, 300]
     },
     {
       "parameters": {
         "method": "GET",
         "url": "=https://api.vxtwitter.com/Twitter/status/{{ $json.properties.URL.url.split('/').pop().split('?')[0] }}",
-        "options": {
-          "timeout": 10000
-        }
+        "options": {}
       },
       "id": "fetch-tweet",
       "name": "Fetch Tweet Content",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [690, 300],
-      "onError": "continueErrorOutput"
+      "typeVersion": 3,
+      "position": [690, 300]
     },
     {
       "parameters": {
@@ -86,24 +71,22 @@
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 500,\n  \"temperature\": 0.3,\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": \"Analyze this tweet about nano banana pro prompts and provide a structured response.\\n\\nTweet Author: {{ $json.user_name }}\\nTweet Text: {{ $json.text }}\\nTweet URL: {{ $('Notion Trigger').item.json.properties.URL.url }}\\n\\nProvide your response in this exact JSON format:\\n{\\n  \\\"category\\\": \\\"<one of: Technique|Use Case|Tips|Examples|Tutorial|Inspiration|Discussion>\\\",\\n  \\\"tags\\\": [\\\"<tag1>\\\", \\\"<tag2>\\\", \\\"<tag3>\\\"],\\n  \\\"description\\\": \\\"<concise 1-2 sentence description>\\\",\\n  \\\"prompt\\\": \\\"<the actual nano banana pro prompt if present, otherwise empty string>\\\",\\n  \\\"author\\\": \\\"{{ $json.user_name }}\\\"\\n}\\n\\nIMPORTANT - Prompt Extraction:\\n- Look for the actual nano banana pro prompt in the tweet\\n- Prompts are often in quotes, code blocks, or clearly formatted\\n- Extract the complete prompt text exactly as written\\n- If the tweet discusses prompts but doesn't contain an actual prompt, leave empty\\n- If multiple prompts, extract the primary/main one\\n\\nFocus on:\\n- What aspect of nano banana pro prompts this covers\\n- Key techniques or insights mentioned\\n- Practical application value\\n\\nRespond ONLY with valid JSON, no other text.\"\n    }\n  ]\n}",
-        "options": {
-          "timeout": 30000
-        }
+        "options": {}
       },
       "id": "claude-analysis",
       "name": "Claude Analysis",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
+      "typeVersion": 3,
       "position": [910, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Extract Claude's response from API result\nconst claudeResponse = $input.item.json.content?.[0]?.text || \"\";\n\nlet analysis;\ntry {\n  // Clean markdown code blocks if present\n  const cleanJson = claudeResponse\n    .replace(/```json\\n?|```/g, '')\n    .trim();\n  \n  // Parse JSON\n  analysis = JSON.parse(cleanJson);\n  \n  // Validate category is one of allowed values\n  const validCategories = ['Technique', 'Use Case', 'Tips', 'Examples', 'Tutorial', 'Inspiration', 'Discussion', 'Uncategorized'];\n  if (!validCategories.includes(analysis.category)) {\n    analysis.category = 'Uncategorized';\n  }\n  \n  // Ensure tags is an array\n  if (!Array.isArray(analysis.tags)) {\n    analysis.tags = ['Needs-review'];\n  }\n  \n} catch (error) {\n  // Fallback for parsing failures\n  analysis = {\n    category: \"Uncategorized\",\n    tags: [\"Needs-review\"],\n    description: \"Failed to parse analysis - \" + error.message,\n    prompt: \"\",\n    author: $('Fetch Tweet Content').item.json.user_name || \"Unknown\"\n  };\n}\n\n// Get original data from previous nodes\nconst tweetData = $('Fetch Tweet Content').item.json;\nconst notionData = $('Notion Trigger').item.json;\n\n// Return structured data for Notion update\nreturn {\n  json: {\n    pageId: notionData.id,\n    category: analysis.category,\n    tags: analysis.tags,\n    description: analysis.description || \"\",\n    prompt: analysis.prompt || \"\",\n    tweetContent: tweetData.text || \"\",\n    author: tweetData.user_name || analysis.author || \"Unknown\",\n    tweetUrl: notionData.properties.URL.url\n  }\n};"
+        "functionCode": "// Extract Claude's response from API result\nconst claudeResponse = items[0].json.content?.[0]?.text || \"\";\n\nlet analysis;\ntry {\n  // Clean markdown code blocks if present\n  const cleanJson = claudeResponse\n    .replace(/```json\\n?|```/g, '')\n    .trim();\n  \n  // Parse JSON\n  analysis = JSON.parse(cleanJson);\n  \n  // Validate category is one of allowed values\n  const validCategories = ['Technique', 'Use Case', 'Tips', 'Examples', 'Tutorial', 'Inspiration', 'Discussion', 'Uncategorized'];\n  if (!validCategories.includes(analysis.category)) {\n    analysis.category = 'Uncategorized';\n  }\n  \n  // Ensure tags is an array\n  if (!Array.isArray(analysis.tags)) {\n    analysis.tags = ['Needs-review'];\n  }\n  \n} catch (error) {\n  // Fallback for parsing failures\n  analysis = {\n    category: \"Uncategorized\",\n    tags: [\"Needs-review\"],\n    description: \"Failed to parse analysis - \" + error.message,\n    prompt: \"\",\n    author: \"Unknown\"\n  };\n}\n\n// Get original data from previous nodes\nconst tweetData = $node[\"Fetch Tweet Content\"].json;\nconst notionData = $node[\"Notion Trigger\"].json;\n\n// Return structured data for Notion update\nreturn [{\n  json: {\n    pageId: notionData.id,\n    category: analysis.category,\n    tags: analysis.tags,\n    description: analysis.description || \"\",\n    prompt: analysis.prompt || \"\",\n    tweetContent: tweetData.text || \"\",\n    author: tweetData.user_name || analysis.author || \"Unknown\",\n    tweetUrl: notionData.properties.URL.url\n  }\n}];"
       },
       "id": "parse-response",
       "name": "Parse Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
       "position": [1130, 300]
     },
     {
@@ -159,14 +142,14 @@
       "id": "update-notion",
       "name": "Update Notion",
       "type": "n8n-nodes-base.notion",
-      "typeVersion": 2.1,
+      "typeVersion": 2,
       "position": [1350, 300]
     },
     {
       "parameters": {
         "resource": "databasePage",
         "operation": "update",
-        "pageId": "={{ $('Notion Trigger').item.json.id }}",
+        "pageId": "={{ $node[\"Notion Trigger\"].json.id }}",
         "propertiesUi": {
           "propertyValues": [
             {
@@ -177,7 +160,7 @@
             {
               "key": "Description",
               "type": "richText",
-              "textContent": "=Failed to fetch tweet: {{ $json.error?.message || $json.message || 'Tweet not found or deleted' }}"
+              "textContent": "Failed to fetch tweet - may be deleted or private"
             },
             {
               "key": "Date Processed",
@@ -190,7 +173,7 @@
       "id": "mark-error",
       "name": "Mark as Error",
       "type": "n8n-nodes-base.notion",
-      "typeVersion": 2.1,
+      "typeVersion": 2,
       "position": [910, 500]
     }
   ],
@@ -222,13 +205,6 @@
         [
           {
             "node": "Claude Analysis",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Mark as Error",
             "type": "main",
             "index": 0
           }
