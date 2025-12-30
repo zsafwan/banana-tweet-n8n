@@ -14,7 +14,7 @@
         "databaseId": {
           "__rl": true,
           "mode": "id",
-          "value": "YOUR_NOTION_DATABASE_ID"
+          "value": "2d995cd9-ba46-8031-9d6f-eecd46b87acf"
         },
         "simple": false,
         "filterType": "json",
